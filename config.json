@@ -1,0 +1,8 @@
+{
+  "port": 3000,
+  "api_keys": [],
+  "grazie_agent": {
+    "name": "aia:idea",
+    "version": "261.22158.366:261.22158.277"
+  }
+}
