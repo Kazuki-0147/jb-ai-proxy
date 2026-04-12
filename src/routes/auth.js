@@ -57,7 +57,7 @@ button:hover{background:#1d4ed8}button:disabled{opacity:0.5;cursor:not-allowed}
 <body><div class="box">
 <h2>登录成功，请输入 License ID</h2>
 <p class="muted">打开 <a href="https://account.jetbrains.com/licenses" target="_blank">account.jetbrains.com/licenses</a> 页面查看</p>
-<form onsubmit="submit(event)">
+<form onsubmit="handleSubmit(event)">
 <label>License ID</label>
 <input type="text" id="lid" required placeholder="ULJX59IS80">
 <button type="submit" id="btn">完成添加</button>
@@ -65,7 +65,7 @@ button:hover{background:#1d4ed8}button:disabled{opacity:0.5;cursor:not-allowed}
 <p id="msg" style="margin-top:12px;font-size:13px"></p>
 </div>
 <script>
-async function submit(e) {
+async function handleSubmit(e) {
   e.preventDefault();
   const btn = document.getElementById('btn');
   const msg = document.getElementById('msg');
