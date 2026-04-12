@@ -36,7 +36,7 @@ function cleanBody(obj) {
 // API Key authentication (only for /v1/* routes)
 function apiKeyAuth(req, res, next) {
   if (!req.path.startsWith('/v1/')) return next();
-  if (!config.api_keys || config.api_keys.length === 0) return next();
+  if (!config.api_key) return next();
 
   const authHeader = req.headers.authorization;
   const apiKey = req.headers['x-api-key'];
@@ -49,7 +49,7 @@ function apiKeyAuth(req, res, next) {
     }
   }
 
-  if (!token || !config.api_keys.includes(token)) {
+  if (token !== config.api_key) {
     if (req.path.startsWith('/v1/messages')) {
       return res.status(401).json({
         type: 'error',
@@ -131,5 +131,5 @@ app.listen(config.port, () => {
   console.log(`Management panel: http://localhost:${config.port}/panel`);
   console.log(`OpenAI endpoint:  http://localhost:${config.port}/v1/chat/completions`);
   console.log(`Anthropic endpoint: http://localhost:${config.port}/v1/messages`);
-  console.log(`API key auth: ${config.api_keys.length > 0 ? 'enabled' : 'disabled'}`);
+  console.log(`API key auth: ${config.api_key ? 'enabled' : 'disabled'}`);
 });
