@@ -106,7 +106,7 @@ curl -H "Authorization: Bearer sk-your-key" http://localhost:3000/v1/models
 
 在 Cherry Studio、ChatGPT-Next-Web、Cursor 等客户端中：
 
-- **Base URL**: `http://你的IP:3000/v1`
+- **Base URL**: `http://localhost:3000/v1`
 - **API Key**: `config.json` 中配置的 key
 - **Model**: 使用 JetBrains profile ID，如 `anthropic-claude-4-6-opus`、`google-chat-gemini-flash-2.0`
 
