@@ -1,4 +1,5 @@
-const { anthropicToolsToJB, buildParametersData } = require('./tools');
+const { anthropicToolsToJB } = require('./tools');
+const { buildParametersData } = require('./parameters');
 
 /**
  * Convert Anthropic /v1/messages request body to JB Grazie request body
@@ -6,7 +7,7 @@ const { anthropicToolsToJB, buildParametersData } = require('./tools');
 function convertRequest(anthropicBody) {
   const messages = convertMessages(anthropicBody.system, anthropicBody.messages || []);
   const toolsData = anthropicToolsToJB(anthropicBody.tools);
-  const parametersData = buildParametersData(toolsData);
+  const parametersData = buildParametersData(anthropicBody.model, anthropicBody, toolsData);
 
   return {
     prompt: 'ij.chat.request.new-chat-on-start',

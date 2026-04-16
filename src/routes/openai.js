@@ -1,6 +1,7 @@
 const express = require('express');
 const { convertRequest } = require('../converter/openai-to-jb');
 const { convertStreamToOpenAI } = require('../converter/jb-to-openai');
+const { endpointFor } = require('../converter/parameters');
 const accountManager = require('../account-manager');
 const jb = require('../jb-client');
 
@@ -35,7 +36,8 @@ router.post('/v1/chat/completions', async (req, res) => {
 
     const jwt = await accountManager.ensureValidJwt(account);
     const jbBody = convertRequest(req.body);
-    const jbRes = await jb.chatStream(jwt, jbBody);
+    const call = endpointFor(req.body.model) === 'responses' ? jb.responsesStream : jb.chatStream;
+    const jbRes = await call(jwt, jbBody);
 
     if (!jbRes.ok) {
       const errText = await jbRes.text();

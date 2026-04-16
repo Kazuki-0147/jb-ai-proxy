@@ -87,9 +87,9 @@ async function getQuota(jwt) {
   return res.json();
 }
 
-function chatStream(jwt, body) {
+function llmStream(jwt, body, path) {
   const config = loadConfig();
-  return fetch(`${JB_API_BASE}/user/v5/llm/chat/stream/v8`, {
+  return fetch(`${JB_API_BASE}${path}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -104,6 +104,14 @@ function chatStream(jwt, body) {
   });
 }
 
+function chatStream(jwt, body) {
+  return llmStream(jwt, body, '/user/v5/llm/chat/stream/v8');
+}
+
+function responsesStream(jwt, body) {
+  return llmStream(jwt, body, '/user/v5/llm/responses/stream/v8');
+}
+
 function decodeJwtPayload(token) {
   const parts = token.split('.');
   if (parts.length !== 3) throw new Error('Invalid JWT');
@@ -113,6 +121,6 @@ function decodeJwtPayload(token) {
 
 module.exports = {
   refreshIdToken, registerGrazie, provideAccess, getUserInfo,
-  getProfiles, getQuota, chatStream, decodeJwtPayload,
+  getProfiles, getQuota, chatStream, responsesStream, decodeJwtPayload,
   JB_API_BASE, JB_OAUTH_BASE,
 };

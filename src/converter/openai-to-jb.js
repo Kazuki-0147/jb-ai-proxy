@@ -1,4 +1,5 @@
-const { openaiToolsToJB, buildParametersData } = require('./tools');
+const { openaiToolsToJB } = require('./tools');
+const { buildParametersData } = require('./parameters');
 
 /**
  * Convert OpenAI /v1/chat/completions request body to JB Grazie request body
@@ -6,7 +7,7 @@ const { openaiToolsToJB, buildParametersData } = require('./tools');
 function convertRequest(openaiBody) {
   const messages = convertMessages(openaiBody.messages || []);
   const toolsData = openaiToolsToJB(openaiBody.tools);
-  const parametersData = buildParametersData(toolsData);
+  const parametersData = buildParametersData(openaiBody.model, openaiBody, toolsData);
 
   return {
     prompt: 'ij.chat.request.new-chat-on-start',

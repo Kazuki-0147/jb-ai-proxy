@@ -36,12 +36,4 @@ function anthropicToolsToJB(tools) {
   ];
 }
 
-/**
- * Build JB parameters.data array - only tools, no other params
- * JB API doesn't accept temperature/top_p/max_tokens in parameters.data
- */
-function buildParametersData(toolsData) {
-  return [...toolsData];
-}
-
-module.exports = { openaiToolsToJB, anthropicToolsToJB, buildParametersData };
+module.exports = { openaiToolsToJB, anthropicToolsToJB };
