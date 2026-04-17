@@ -2,6 +2,7 @@ const express = require('express');
 const { convertRequest } = require('../converter/openai-to-jb');
 const { convertStreamToOpenAI } = require('../converter/jb-to-openai');
 const { endpointFor } = require('../converter/parameters');
+const modelId = require('../model-id');
 const accountManager = require('../account-manager');
 const jb = require('../jb-client');
 
@@ -35,6 +36,17 @@ router.post('/v1/chat/completions', async (req, res) => {
     if (!account) return res.status(503).json({ error: { message: 'No active accounts', type: 'server_error' } });
 
     const jwt = await accountManager.ensureValidJwt(account);
+
+    // Native OpenAI passthrough — route GPT/o-series requests directly to
+    // the JB /openai/v1/chat/completions endpoint, preserving native fields
+    // (response_format, logprobs, parallel_tool_calls, etc.) unchanged.
+    const mapping = modelId.resolve(req.body.model);
+    if (mapping && mapping.family === 'openai') {
+      return proxyNativeOpenai(req, res, jwt, account, mapping.nativeId);
+    }
+
+    // Aggregated fallback for cross-provider requests and for codex/embedding
+    // profiles that the native endpoint doesn't accept.
     const jbBody = convertRequest(req.body);
     const call = endpointFor(req.body.model) === 'responses' ? jb.responsesStream : jb.chatStream;
     const jbRes = await call(jwt, jbBody);
@@ -55,5 +67,41 @@ router.post('/v1/chat/completions', async (req, res) => {
     }
   }
 });
+
+async function proxyNativeOpenai(req, res, jwt, account, nativeId) {
+  const body = { ...req.body, model: nativeId };
+  const jbRes = await jb.nativeOpenaiChatCompletions(jwt, body);
+
+  if (!jbRes.ok) {
+    const errText = await jbRes.text();
+    const status = jbRes.status === 477 ? 429 : jbRes.status;
+    if (jbRes.status === 477) account.status = 'quota_exhausted';
+    try {
+      const parsed = JSON.parse(errText);
+      if (parsed && parsed.error) {
+        return res.status(status).json(parsed);
+      }
+    } catch {}
+    return res.status(status).json({
+      error: { message: errText, type: 'api_error' },
+    });
+  }
+
+  const ct = jbRes.headers.get('content-type') || 'application/json';
+  res.status(jbRes.status);
+  res.setHeader('Content-Type', ct);
+  if (ct.includes('text/event-stream')) {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+  }
+
+  for await (const chunk of jbRes.body) {
+    if (!res.write(chunk)) {
+      await new Promise(resolve => res.once('drain', resolve));
+    }
+  }
+  res.end();
+}
 
 module.exports = router;

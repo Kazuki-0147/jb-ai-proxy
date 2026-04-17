@@ -112,9 +112,9 @@ function responsesStream(jwt, body) {
   return llmStream(jwt, body, '/user/v5/llm/responses/stream/v8');
 }
 
-function nativeAnthropicMessages(jwt, body) {
+function nativeProxy(jwt, body, path) {
   const config = loadConfig();
-  return fetch(`${JB_API_BASE}/user/v5/llm/anthropic/v1/messages`, {
+  return fetch(`${JB_API_BASE}${path}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -126,6 +126,14 @@ function nativeAnthropicMessages(jwt, body) {
   });
 }
 
+function nativeAnthropicMessages(jwt, body) {
+  return nativeProxy(jwt, body, '/user/v5/llm/anthropic/v1/messages');
+}
+
+function nativeOpenaiChatCompletions(jwt, body) {
+  return nativeProxy(jwt, body, '/user/v5/llm/openai/v1/chat/completions');
+}
+
 function decodeJwtPayload(token) {
   const parts = token.split('.');
   if (parts.length !== 3) throw new Error('Invalid JWT');
@@ -135,7 +143,8 @@ function decodeJwtPayload(token) {
 
 module.exports = {
   refreshIdToken, registerGrazie, provideAccess, getUserInfo,
-  getProfiles, getQuota, chatStream, responsesStream, nativeAnthropicMessages,
+  getProfiles, getQuota, chatStream, responsesStream,
+  nativeAnthropicMessages, nativeOpenaiChatCompletions,
   decodeJwtPayload,
   JB_API_BASE, JB_OAUTH_BASE,
 };
