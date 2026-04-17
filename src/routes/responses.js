@@ -2,6 +2,7 @@ const express = require('express');
 const modelId = require('../model-id');
 const accountManager = require('../account-manager');
 const jb = require('../jb-client');
+const { pipeNativeProxy } = require('./_native-proxy');
 
 const router = express.Router();
 
@@ -23,40 +24,12 @@ router.post('/v1/responses', async (req, res) => {
     }
 
     const jwt = await accountManager.ensureValidJwt(account);
-    const call = mapping.family === 'xai' ? jb.nativeXaiResponses : jb.nativeOpenaiResponses;
-    const body = { ...req.body, model: mapping.nativeId };
-    const jbRes = await call(jwt, body);
-
-    if (!jbRes.ok) {
-      const errText = await jbRes.text();
-      const status = jbRes.status === 477 ? 429 : jbRes.status;
-      if (jbRes.status === 477) account.status = 'quota_exhausted';
-      try {
-        const parsed = JSON.parse(errText);
-        if (parsed && parsed.error) {
-          return res.status(status).json(parsed);
-        }
-      } catch {}
-      return res.status(status).json({
-        error: { message: errText, type: 'api_error' },
-      });
-    }
-
-    const ct = jbRes.headers.get('content-type') || 'application/json';
-    res.status(jbRes.status);
-    res.setHeader('Content-Type', ct);
-    if (ct.includes('text/event-stream')) {
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.flushHeaders();
-    }
-
-    for await (const chunk of jbRes.body) {
-      if (!res.write(chunk)) {
-        await new Promise(resolve => res.once('drain', resolve));
-      }
-    }
-    res.end();
+    const nativeCall = mapping.family === 'xai' ? jb.nativeXaiResponses : jb.nativeOpenaiResponses;
+    return pipeNativeProxy(req, res, {
+      nativeCall,
+      account, jwt, nativeId: mapping.nativeId,
+      errorShape: 'openai',
+    });
   } catch (err) {
     console.error('POST /v1/responses error:', err.message);
     if (!res.headersSent) {

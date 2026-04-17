@@ -5,6 +5,7 @@ const { endpointFor } = require('../converter/parameters');
 const modelId = require('../model-id');
 const accountManager = require('../account-manager');
 const jb = require('../jb-client');
+const { pipeNativeProxy } = require('./_native-proxy');
 
 const router = express.Router();
 
@@ -42,7 +43,11 @@ router.post('/v1/chat/completions', async (req, res) => {
     // (response_format, logprobs, parallel_tool_calls, etc.) unchanged.
     const mapping = modelId.resolve(req.body.model);
     if (mapping && mapping.family === 'openai') {
-      return proxyNativeOpenai(req, res, jwt, account, mapping.nativeId);
+      return pipeNativeProxy(req, res, {
+        nativeCall: jb.nativeOpenaiChatCompletions,
+        account, jwt, nativeId: mapping.nativeId,
+        errorShape: 'openai',
+      });
     }
 
     // Aggregated fallback for cross-provider requests and for codex/embedding
@@ -67,41 +72,5 @@ router.post('/v1/chat/completions', async (req, res) => {
     }
   }
 });
-
-async function proxyNativeOpenai(req, res, jwt, account, nativeId) {
-  const body = { ...req.body, model: nativeId };
-  const jbRes = await jb.nativeOpenaiChatCompletions(jwt, body);
-
-  if (!jbRes.ok) {
-    const errText = await jbRes.text();
-    const status = jbRes.status === 477 ? 429 : jbRes.status;
-    if (jbRes.status === 477) account.status = 'quota_exhausted';
-    try {
-      const parsed = JSON.parse(errText);
-      if (parsed && parsed.error) {
-        return res.status(status).json(parsed);
-      }
-    } catch {}
-    return res.status(status).json({
-      error: { message: errText, type: 'api_error' },
-    });
-  }
-
-  const ct = jbRes.headers.get('content-type') || 'application/json';
-  res.status(jbRes.status);
-  res.setHeader('Content-Type', ct);
-  if (ct.includes('text/event-stream')) {
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.flushHeaders();
-  }
-
-  for await (const chunk of jbRes.body) {
-    if (!res.write(chunk)) {
-      await new Promise(resolve => res.once('drain', resolve));
-    }
-  }
-  res.end();
-}
 
 module.exports = router;

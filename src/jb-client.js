@@ -112,7 +112,7 @@ function responsesStream(jwt, body) {
   return llmStream(jwt, body, '/user/v5/llm/responses/stream/v8');
 }
 
-function nativeProxy(jwt, body, path) {
+function nativeProxy(jwt, body, path, signal) {
   const config = loadConfig();
   return fetch(`${JB_API_BASE}${path}`, {
     method: 'POST',
@@ -123,23 +123,24 @@ function nativeProxy(jwt, body, path) {
       'User-Agent': 'ktor-client',
     },
     body: JSON.stringify(body),
+    signal,
   });
 }
 
-function nativeAnthropicMessages(jwt, body) {
-  return nativeProxy(jwt, body, '/user/v5/llm/anthropic/v1/messages');
+function nativeAnthropicMessages(jwt, body, signal) {
+  return nativeProxy(jwt, body, '/user/v5/llm/anthropic/v1/messages', signal);
 }
 
-function nativeOpenaiChatCompletions(jwt, body) {
-  return nativeProxy(jwt, body, '/user/v5/llm/openai/v1/chat/completions');
+function nativeOpenaiChatCompletions(jwt, body, signal) {
+  return nativeProxy(jwt, body, '/user/v5/llm/openai/v1/chat/completions', signal);
 }
 
-function nativeOpenaiResponses(jwt, body) {
-  return nativeProxy(jwt, body, '/user/v5/llm/openai/v1/responses');
+function nativeOpenaiResponses(jwt, body, signal) {
+  return nativeProxy(jwt, body, '/user/v5/llm/openai/v1/responses', signal);
 }
 
-function nativeXaiResponses(jwt, body) {
-  return nativeProxy(jwt, body, '/user/v5/llm/xai/v1/responses');
+function nativeXaiResponses(jwt, body, signal) {
+  return nativeProxy(jwt, body, '/user/v5/llm/xai/v1/responses', signal);
 }
 
 function decodeJwtPayload(token) {

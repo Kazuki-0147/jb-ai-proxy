@@ -5,6 +5,7 @@ const { endpointFor } = require('../converter/parameters');
 const modelId = require('../model-id');
 const accountManager = require('../account-manager');
 const jb = require('../jb-client');
+const { pipeNativeProxy } = require('./_native-proxy');
 
 const router = express.Router();
 
@@ -25,7 +26,11 @@ router.post('/v1/messages', async (req, res) => {
     // feature unchanged.
     const mapping = modelId.resolve(req.body.model);
     if (mapping && mapping.family === 'anthropic') {
-      return proxyNativeAnthropic(req, res, jwt, account, mapping.nativeId);
+      return pipeNativeProxy(req, res, {
+        nativeCall: jb.nativeAnthropicMessages,
+        account, jwt, nativeId: mapping.nativeId,
+        errorShape: 'anthropic',
+      });
     }
 
     // Aggregated fallback for cross-provider requests (e.g. Anthropic client
@@ -56,44 +61,5 @@ router.post('/v1/messages', async (req, res) => {
     }
   }
 });
-
-async function proxyNativeAnthropic(req, res, jwt, account, nativeId) {
-  const body = { ...req.body, model: nativeId };
-  const jbRes = await jb.nativeAnthropicMessages(jwt, body);
-
-  if (!jbRes.ok) {
-    const errText = await jbRes.text();
-    const status = jbRes.status === 477 ? 429 : jbRes.status;
-    if (jbRes.status === 477) account.status = 'quota_exhausted';
-    // Try to forward Anthropic-shaped error body when present, otherwise wrap.
-    try {
-      const parsed = JSON.parse(errText);
-      if (parsed && parsed.type === 'error') {
-        return res.status(status).json(parsed);
-      }
-    } catch {}
-    return res.status(status).json({
-      type: 'error',
-      error: { type: 'api_error', message: errText },
-    });
-  }
-
-  const ct = jbRes.headers.get('content-type') || 'application/json';
-  res.status(jbRes.status);
-  res.setHeader('Content-Type', ct);
-  if (ct.includes('text/event-stream')) {
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.flushHeaders();
-  }
-
-  for await (const chunk of jbRes.body) {
-    if (!res.write(chunk)) {
-      // Client backpressure — wait for drain before continuing.
-      await new Promise(resolve => res.once('drain', resolve));
-    }
-  }
-  res.end();
-}
 
 module.exports = router;
